@@ -188,12 +188,22 @@
     if (state.accumulated >= state.limit * 60) {
       updateBlocked()
       showModal('blocked')
+      pauseTimer()
+      playAlarm()
+      sendNotification()
+      showScreen('running')
+      updateRunning()
       return true
     }
     const block = Math.floor(state.accumulated / CHECKPOINT)
     if (block > state.lastBlock && block >= 1) {
       updateTakeover()
       showModal('takeover')
+      pauseTimer()
+      playAlarm()
+      sendNotification()
+      showScreen('running')
+      updateRunning()
       return true
     }
     return false
@@ -250,22 +260,86 @@
     }
   }
 
-  // ---- Visibility ----
-  function onVisible() {
-    if (!state.running) return
-
-    const start = parseInt(localStorage.getItem(STORE.START))
-    if (start) {
-      const gap = Math.floor((Date.now() - start) / 1000)
-      if (gap > 0) {
-        state.accumulated += gap
-        state.startTime = Date.now()
-        save()
-        updateRunning()
-        checkModals()
+  function pauseTimer() {
+    if (state.startTime) {
+      const elapsed = Math.floor((Date.now() - state.startTime) / 1000)
+      if (elapsed > 0) {
+        state.accumulated += elapsed
       }
     }
+    state.running = false
+    state.startTime = null
+    localStorage.removeItem(STORE.START)
+    save()
+    stopTicking()
+  }
+
+  function resumeTimer() {
+    state.running = true
+    state.startTime = Date.now()
+    save()
     startTicking()
+    updateRunning()
+  }
+
+  // ---- Notification & Alarm ----
+  function playAlarm() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const play = (freq, start, dur) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.frequency.value = freq
+        gain.gain.setValueAtTime(0.3, start)
+        gain.gain.exponentialRampToValueAtTime(0.01, start + dur)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(start)
+        osc.stop(start + dur)
+      }
+      const t = ctx.currentTime
+      play(880, t, 0.15)
+      play(880, t + 0.2, 0.15)
+      play(880, t + 0.4, 0.15)
+    } catch (_) { /* audio not available */ }
+  }
+
+  function sendNotification() {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const remaining = state.limit * 60 - state.accumulated
+      try {
+        new Notification('Timer Pad - Time Check', {
+          body: `Used: ${fmt(state.accumulated)}  ·  Remaining: ${fmt(Math.max(0, remaining))}`,
+          icon: '/icon.svg',
+        })
+      } catch (_) { /* notification failed */ }
+    } else if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }
+
+  // ---- Visibility ----
+  function onVisible() {
+    if (state.running) {
+      const start = parseInt(localStorage.getItem(STORE.START))
+      if (start) {
+        const gap = Math.floor((Date.now() - start) / 1000)
+        if (gap > 0) {
+          state.accumulated += gap
+          state.startTime = Date.now()
+          save()
+          updateRunning()
+          if (checkModals()) return
+        }
+      }
+      if (checkModals()) return
+      startTicking()
+      return
+    }
+
+    if (checkModals()) return
+    showScreen('idle')
+    updateIdle()
   }
 
   function onHidden() {
@@ -293,12 +367,12 @@
     }
     state.lastBlock = Math.floor(state.accumulated / CHECKPOINT)
     $('takeoverPw').value = ''
-    save()
     hideModals()
     if (state.accumulated >= state.limit * 60) {
       showModal('blocked')
       return
     }
+    resumeTimer()
   }
 
   async function handleBlockedReset() {
@@ -475,24 +549,17 @@
       return
     }
 
-    if (state.accumulated >= state.limit * 60) {
-      updateBlocked()
-      showModal('blocked')
-      showScreen('idle')
-      updateIdle()
-      return
-    }
-
     if (state.running) {
       startTicking()
       showScreen('running')
       updateRunning()
-      // Check if a takeover should trigger immediately
-      checkModals()
-    } else {
-      showScreen('idle')
-      updateIdle()
+      if (checkModals()) return
     }
+
+    if (checkModals()) return
+
+    showScreen('idle')
+    updateIdle()
   }
 
   init()
