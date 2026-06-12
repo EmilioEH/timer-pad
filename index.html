@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+  <title>Timer Pad</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- IDLE screen -->
+    <section id="screen-idle" class="screen active">
+      <h1>Timer Pad</h1>
+      <p class="daily-limit-display" id="idleLimit">15 minutes per day</p>
+      <button id="startBtn" class="btn btn-primary btn-large">▶ Start Timer</button>
+      <div class="btn-group">
+        <p id="idleToday" class="remaining">0:00 used today</p>
+        <button id="settingsBtn" class="btn btn-ghost">⚙ Settings</button>
+      </div>
+    </section>
+
+    <!-- RUNNING screen -->
+    <section id="screen-running" class="screen">
+      <h1>Timer Pad</h1>
+      <div class="timer-display">
+        <div class="elapsed" id="runningElapsed">0:00</div>
+        <div class="remaining" id="runningRemaining">15:00 remaining</div>
+      </div>
+      <div class="progress-container">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+      <p class="block-info" id="blockInfo">Checkpoint 0 of 3</p>
+      <div class="btn-group">
+        <button id="stopBtn" class="btn btn-secondary">■ Stop Timer</button>
+        <button id="settingsBtnRunning" class="btn btn-ghost">⚙ Settings</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- TAKEOVER modal (5-min checkpoint) -->
+  <div id="modal-takeover" class="modal">
+    <div class="modal-content">
+      <h2>Time Check</h2>
+      <div class="takeover-info">
+        <p>Used: <span id="takeoverElapsed">0:00</span></p>
+        <p>Remaining: <span id="takeoverRemaining">15:00</span></p>
+      </div>
+      <p class="takeover-msg">Parent permission required to continue</p>
+      <input type="password" id="takeoverPw" class="password-input" placeholder="Enter parent password" autocomplete="off" inputmode="text">
+      <button id="takeoverConfirm" class="btn btn-primary" style="width:100%">Continue</button>
+      <p class="error-msg" id="takeoverError"></p>
+    </div>
+  </div>
+
+  <!-- BLOCKED modal (daily limit reached) -->
+  <div id="modal-blocked" class="modal">
+    <div class="modal-content">
+      <div class="blocked-icon">⛔</div>
+      <h2>Daily Limit Reached</h2>
+      <div class="blocked-stats">
+        <p class="stat">Used: <span id="blockedElapsed">15:00</span></p>
+        <p class="stat">Limit: <span id="blockedLimit">15:00</span></p>
+      </div>
+      <p class="takeover-msg">Parent can reset with password</p>
+      <input type="password" id="blockedPw" class="password-input" placeholder="Enter parent password" autocomplete="off" inputmode="text">
+      <button id="blockedReset" class="btn btn-primary" style="width:100%">Reset Today's Timer</button>
+      <p class="error-msg" id="blockedError"></p>
+    </div>
+  </div>
+
+  <!-- SETTINGS modal -->
+  <div id="modal-settings" class="modal">
+    <div class="modal-content settings-content">
+      <h2>Settings</h2>
+
+      <div class="setting-row">
+        <label for="settingsLimit">Daily time limit (minutes)</label>
+        <div class="setting-control">
+          <input type="number" id="settingsLimit" min="1" max="1440" value="15">
+          <button id="settingsSaveLimit" class="btn btn-small">Save</button>
+        </div>
+        <p class="setting-hint">Enter current password to save</p>
+      </div>
+
+      <hr>
+
+      <div class="setting-row">
+        <label for="settingsCurPw">Current password</label>
+        <input type="password" id="settingsCurPw" class="password-input" placeholder="Enter current password" autocomplete="off">
+      </div>
+
+      <div class="setting-row">
+        <label for="settingsNewPw">New password</label>
+        <input type="password" id="settingsNewPw" class="password-input" placeholder="Enter new password" autocomplete="off">
+      </div>
+
+      <div class="setting-row">
+        <label for="settingsNewPw2">Confirm new password</label>
+        <input type="password" id="settingsNewPw2" class="password-input" placeholder="Confirm new password" autocomplete="off">
+      </div>
+
+      <button id="settingsChangePw" class="btn btn-secondary" style="width:100%">Change Password</button>
+
+      <hr>
+
+      <button id="settingsResetToday" class="btn btn-danger" style="width:100%">Reset Today's Timer</button>
+      <p class="setting-hint" style="text-align:center">Enter current password above to reset</p>
+
+      <hr>
+
+      <button id="settingsClose" class="btn btn-ghost">← Back</button>
+      <p class="error-msg" id="settingsError"></p>
+    </div>
+  </div>
+
+  <!-- SETUP modal (first run) -->
+  <div id="modal-setup" class="modal">
+    <div class="modal-content">
+      <h2>Welcome to Timer Pad</h2>
+      <p>Set up parent controls to get started</p>
+
+      <div class="setting-row">
+        <label for="setupLimit">Daily time limit (minutes)</label>
+        <input type="number" id="setupLimit" min="1" max="1440" value="15">
+      </div>
+
+      <div class="setting-row">
+        <label for="setupPw">Parent password</label>
+        <input type="password" id="setupPw" class="password-input" placeholder="Create a password" autocomplete="new-password">
+      </div>
+
+      <div class="setting-row">
+        <label for="setupPw2">Confirm password</label>
+        <input type="password" id="setupPw2" class="password-input" placeholder="Confirm password" autocomplete="new-password">
+      </div>
+
+      <button id="setupDone" class="btn btn-primary" style="width:100%">Done</button>
+      <p class="error-msg" id="setupError"></p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
